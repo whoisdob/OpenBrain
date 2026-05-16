@@ -1,0 +1,60 @@
+
+=== Slice 3: Extend `queries.ts` — `ThoughtMetadata.provenance` + `searchThoughtsBySource` ===
+Worker: gh-copilot
+Model: claude-sonnet-4.6
+Started: 2026-05-16T13:48:59.355Z
+
+=== STDOUT ===
+● Read pforge-prompt-1778939343440-z9ccn9.txt
+  │ ~\AppData\Local\Temp\pforge-prompt-1778939343440-z9ccn9.txt
+  └ 29 lines read
+
+● Read queries.ts
+  │ src\db\queries.ts
+  └ 377 lines read
+
+Now I understand the file. I need to add `provenance` to `ThoughtMetadata` and create a `searchThoughtsBySource` function. Let me implement both changes.
+
+● Edit queries.ts +5
+  └ src\db\queries.ts
+
+Now add the `searchThoughtsBySource` function before the batch insert section:
+
+● Edit queries.ts +57
+  └ src\db\queries.ts
+
+Now run the validation gate:
+
+● TypeScript type check (shell)
+  │ cd E:\GitHub\OpenBrain && npx tsc --noEmit 2>&1 | Select-Object -First 30
+  └ 2 lines...
+
+● Validation gate grep checks (shell)
+  │ cd E:\GitHub\OpenBrain && Select-String -Pattern 'searchThoughtsBySource'
+  │ src\db\queries.ts && Select-String -Pattern 'provenance' src\db\queries.ts
+  │ && echo "ok"
+  └ 7 lines...
+
+All checks pass. TypeScript compiles cleanly and both `searchThoughtsBySource` and `provenance` are present.
+
+**Changes made to `src/db/queries.ts`:**
+1. Added `provenance` field to `ThoughtMetadata` (with `origin`, `original_id`, and `imported_at`)
+2. Added `searchThoughtsBySource` function that queries thoughts by `metadata.source` or `metadata.provenance.origin`, with optional filtering by project, created_by, archived status, and limit
+
+<!-- PFORGE_TRAJECTORY:BEGIN -->
+I extended the ThoughtMetadata interface with a provenance sub-object containing origin, original_id, and imported_at fields, all optional. The provenance field itself is optional to maintain backward compatibility with existing thoughts that lack it.
+
+For searchThoughtsBySource, I followed the same parameterized query pattern used by listThoughts — building conditions and params arrays with an incrementing index. The function matches on both the legacy metadata.source field and the new metadata.provenance.origin field using an OR clause, so callers get results regardless of which format was used to store the source. This dual-match approach avoids a breaking migration requirement.
+
+I considered adding a GIN index hint or a dedicated SQL function like match_thoughts, but since the existing codebase uses inline queries for list-style operations and only uses stored functions for vector similarity search, I kept it consistent. A future slice that needs high-performance source lookups might want to add a GIN index on metadata->'provenance'->>'origin'.
+
+Key locations a later slice should know about: ThoughtMetadata is the shared type used by insertThought, updateThought, batchInsertThoughts, and the new searchThoughtsBySource. The BatchThoughtInput interface also references ThoughtMetadata, so any batch import pipeline will automatically support provenance. The searchThoughtsBySource function lives just above batchInsertThoughts in the file.
+<!-- PFORGE_TRAJECTORY:END -->
+
+
+
+=== STDERR ===
+
+Changes   +62 -0
+AI Units  20 (43s)
+Tokens    ↑ 14.3k • ↓ 1.9k • 125.3k (cached)

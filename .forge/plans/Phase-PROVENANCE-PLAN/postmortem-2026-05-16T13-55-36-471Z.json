@@ -1,0 +1,19 @@
+{
+  "planBasename": "Phase-PROVENANCE-PLAN",
+  "createdAt": "2026-05-16T13:55:36.471Z",
+  "status": "completed",
+  "totalDurationMs": 662232,
+  "retriesPerSlice": {},
+  "gateFlaps": 0,
+  "topFailureReason": null,
+  "costDelta": {
+    "before": 0.02,
+    "after": 0.05,
+    "delta": 0.03
+  },
+  "driftDelta": {
+    "before": null,
+    "after": 0,
+    "delta": null
+  }
+}

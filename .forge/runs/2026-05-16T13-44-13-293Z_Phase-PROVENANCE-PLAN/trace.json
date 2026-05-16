@@ -1,0 +1,218 @@
+{
+  "resource": {
+    "service.name": "plan-forge-orchestrator",
+    "service.version": "2.4.0",
+    "host.name": "SRN-Homebase",
+    "os.type": "Windows_NT",
+    "user.name": "Scott Nichols",
+    "project.name": "OpenBrain"
+  },
+  "traceId": "ae77c939fd7b49be81467e5fb3ce5584",
+  "spans": [
+    {
+      "spanId": "b2a490e5427b4a32",
+      "parentSpanId": null,
+      "name": "run-plan",
+      "kind": "SERVER",
+      "startTime": "2026-05-16T13:44:32.468Z",
+      "endTime": "2026-05-16T13:55:36.469Z",
+      "status": "OK",
+      "attributes": {
+        "plan": "E:\\GitHub\\OpenBrain\\docs\\plans\\Phase-PROVENANCE-PLAN.md",
+        "mode": "auto",
+        "model": "claude-opus-4.6",
+        "sliceCount": 5
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:55:36.469Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "status": "completed",
+            "passed": 5,
+            "failed": 0,
+            "report": "All slices: 5 passed, 0 failed. Cost: $0.05. Sweep: ? markers."
+          }
+        }
+      ],
+      "logSummary": []
+    },
+    {
+      "spanId": "0797b3bb6eb24a7b",
+      "parentSpanId": "b2a490e5427b4a32",
+      "name": "slice-1",
+      "kind": "INTERNAL",
+      "startTime": "2026-05-16T13:44:32.471Z",
+      "endTime": "2026-05-16T13:46:29.676Z",
+      "status": "OK",
+      "attributes": {
+        "sliceId": "1",
+        "title": "Migration 003 + rollback file",
+        "parallel": false,
+        "pforge.actor.source": null,
+        "pforge.action.security_risk": null,
+        "duration": 116903,
+        "model": "claude-sonnet-4.6",
+        "cost_usd": 0.01,
+        "attempts": 1
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:46:29.676Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "duration": 116903,
+            "model": "claude-sonnet-4.6",
+            "tokens_out": 858,
+            "attempts": 1
+          }
+        }
+      ],
+      "logSummary": []
+    },
+    {
+      "spanId": "6d395b24fb314013",
+      "parentSpanId": "b2a490e5427b4a32",
+      "name": "slice-2",
+      "kind": "INTERNAL",
+      "startTime": "2026-05-16T13:46:29.676Z",
+      "endTime": "2026-05-16T13:48:59.271Z",
+      "status": "OK",
+      "attributes": {
+        "sliceId": "2",
+        "title": "Wire `pforge-sdk/hallmark` into `package.json` + integration test for the migration",
+        "parallel": false,
+        "pforge.actor.source": null,
+        "pforge.action.security_risk": null,
+        "duration": 149302,
+        "model": "claude-sonnet-4.6",
+        "cost_usd": 0.01,
+        "attempts": 1
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:48:59.271Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "duration": 149302,
+            "model": "claude-sonnet-4.6",
+            "tokens_out": 1600,
+            "attempts": 1
+          }
+        }
+      ],
+      "logSummary": []
+    },
+    {
+      "spanId": "1df4c7d2a2b94067",
+      "parentSpanId": "b2a490e5427b4a32",
+      "name": "slice-3",
+      "kind": "INTERNAL",
+      "startTime": "2026-05-16T13:48:59.271Z",
+      "endTime": "2026-05-16T13:49:51.469Z",
+      "status": "OK",
+      "attributes": {
+        "sliceId": "3",
+        "title": "Extend `queries.ts` — `ThoughtMetadata.provenance` + `searchThoughtsBySource`",
+        "parallel": false,
+        "pforge.actor.source": null,
+        "pforge.action.security_risk": null,
+        "duration": 51902,
+        "model": "claude-sonnet-4.6",
+        "cost_usd": 0.01,
+        "attempts": 1
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:49:51.469Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "duration": 51902,
+            "model": "claude-sonnet-4.6",
+            "tokens_out": 1900,
+            "attempts": 1
+          }
+        }
+      ],
+      "logSummary": []
+    },
+    {
+      "spanId": "8ef2c1c159b1456d",
+      "parentSpanId": "b2a490e5427b4a32",
+      "name": "slice-4",
+      "kind": "INTERNAL",
+      "startTime": "2026-05-16T13:49:51.469Z",
+      "endTime": "2026-05-16T13:51:45.920Z",
+      "status": "OK",
+      "attributes": {
+        "sliceId": "4",
+        "title": "API surface — validation on POST, `capabilities` on /health, GET /memories/by-source",
+        "parallel": false,
+        "pforge.actor.source": null,
+        "pforge.action.security_risk": null,
+        "duration": 114086,
+        "model": "claude-sonnet-4.6",
+        "cost_usd": 0.01,
+        "attempts": 1
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:51:45.920Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "duration": 114086,
+            "model": "claude-sonnet-4.6",
+            "tokens_out": 6300,
+            "attempts": 1
+          }
+        }
+      ],
+      "logSummary": []
+    },
+    {
+      "spanId": "5d1a1b2e13b94c78",
+      "parentSpanId": "b2a490e5427b4a32",
+      "name": "slice-5",
+      "kind": "INTERNAL",
+      "startTime": "2026-05-16T13:51:45.920Z",
+      "endTime": "2026-05-16T13:55:36.313Z",
+      "status": "OK",
+      "attributes": {
+        "sliceId": "5",
+        "title": "Docs + CHANGELOG + version bump to 0.7.0",
+        "parallel": false,
+        "pforge.actor.source": null,
+        "pforge.action.security_risk": null,
+        "duration": 230039,
+        "model": "claude-sonnet-4.6",
+        "cost_usd": 0.01,
+        "attempts": 1
+      },
+      "events": [
+        {
+          "time": "2026-05-16T13:55:36.313Z",
+          "name": "completed",
+          "severity": "INFO",
+          "severityNumber": 9,
+          "attributes": {
+            "duration": 230039,
+            "model": "claude-sonnet-4.6",
+            "tokens_out": 4700,
+            "attempts": 1
+          }
+        }
+      ],
+      "logSummary": []
+    }
+  ]
+}

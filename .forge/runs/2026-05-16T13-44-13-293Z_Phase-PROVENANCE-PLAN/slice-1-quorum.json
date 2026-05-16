@@ -1,0 +1,24 @@
+{
+  "score": 3,
+  "signals": {
+    "scopeWeight": 0.4,
+    "dependencyWeight": 0.25,
+    "securityWeight": 0,
+    "databaseWeight": 0.3333333333333333,
+    "gateWeight": 0.2,
+    "taskWeight": 0,
+    "historicalWeight": 0
+  },
+  "threshold": 3,
+  "models": [
+    "claude-opus-4.6",
+    "gpt-5.3-codex"
+  ],
+  "successfulLegs": 2,
+  "totalLegs": 2,
+  "legsFailed": 0,
+  "legErrors": [],
+  "dispatchDuration": 33207,
+  "reviewerFallback": false,
+  "reviewerCost": 0.1254
+}

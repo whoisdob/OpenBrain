@@ -1,0 +1,65 @@
+
+=== Slice 2: Wire `pforge-sdk/hallmark` into `package.json` + integration test for the migration ===
+Worker: gh-copilot
+Model: claude-sonnet-4.6
+Started: 2026-05-16T13:46:29.760Z
+
+=== STDOUT ===
+● Read pforge-prompt-1778939286941-m2uspz.txt
+  │ ~\AppData\Local\Temp\pforge-prompt-1778939286941-m2uspz.txt
+  └ 141 lines read
+
+● Read package.json
+  └ 50 lines read
+
+● Read provenance.test.ts
+  │ src\__integration__\provenance.test.ts
+  └ 229 lines read
+
+Both files are already correct. `package.json` has the `pforge-sdk` devDep (line 48) and the test file has the proper import + all 11 tests. Let me verify the sibling SDK exists and run `npm install`.
+
+● Check sibling SDK exists (shell)
+  │ Test-Path "E:\GitHub\Plan-Forge\pforge-sdk\src\hallmark.mjs"
+  └ 2 lines...
+
+Good, the sibling SDK exists. Now running `npm install`:
+
+● Install dependencies (shell)
+  │ cd E:\GitHub\OpenBrain && npm install 2>&1
+  └ 10 lines...
+
+Now let me verify the symlink resolves correctly and run the validation gate:
+
+● Verify hallmark.mjs resolves (shell)
+  │ cd E:\GitHub\OpenBrain && Test-Path
+  │ "node_modules\pforge-sdk\src\hallmark.mjs"
+  └ 2 lines...
+
+Symlink resolves. Now running the validation gate:
+
+● Run validation gate (shell)
+  │ cd E:\GitHub\OpenBrain && npx vitest run --config
+  │ vitest.integration.config.ts src/__integration__/provenance.test.ts
+  │ --reporter=dot 2>&1; if ($LASTEXITCODE -eq 0) { echo "ok" } else { echo
+  │ "FAILED with exit code $LASTEXITCODE" }
+  └ 7 lines...
+
+All 11 tests passed. Validation gate: **ok**.
+
+**Summary:** No file edits were needed — both `package.json` and `provenance.test.ts` were already correctly wired. Ran `npm install` to materialize the symlink, verified `hallmark.mjs` resolves, and all 11 integration tests pass.
+
+<!-- PFORGE_TRAJECTORY:BEGIN -->
+This slice required no code changes at all. Both target files were already in the correct state from prior work. The package.json already had the pforge-sdk file reference pointing at the sibling Plan-Forge repo, and the integration test file already contained the proper ts-expect-error import of pforge-sdk/hallmark, the full hallmark round-trip test at position ten, sentinel-scoped cleanup in afterAll, and all eleven tests including the match_thoughts regression guard at test eleven.
+
+The only operational step was running npm install to ensure the node_modules symlink materialized, then verifying that node_modules/pforge-sdk/src/hallmark.mjs was reachable. The validation gate passed on first attempt with all eleven tests green in about two hundred milliseconds.
+
+A future slice should be aware that the pforge-sdk dependency uses a relative file path to a sibling directory at ../Plan-Forge/pforge-sdk. This means CI environments or fresh clones will fail unless that sibling repo is also cloned at the expected location. The ESM resolution works because pforge-sdk's package.json has an exports map entry for ./hallmark pointing to ./src/hallmark.mjs. If anyone restructures the pforge-sdk package or changes that exports map, the import in provenance.test.ts will break. The sentinel pattern uses project column values prefixed with __test_slice2_ and a random UUID, so cleanup is scoped tightly and won't interfere with other test suites.
+<!-- PFORGE_TRAJECTORY:END -->
+
+
+
+=== STDERR ===
+
+Changes   +0 -0
+AI Units  20.4 (48s)
+Tokens    ↑ 15.7k • ↓ 1.6k • 133.4k (cached)

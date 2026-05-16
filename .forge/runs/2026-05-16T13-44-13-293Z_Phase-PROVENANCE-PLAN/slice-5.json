@@ -1,0 +1,50 @@
+{
+  "number": "5",
+  "title": "Docs + CHANGELOG + version bump to 0.7.0",
+  "status": "passed",
+  "duration": 230039,
+  "exitCode": 0,
+  "gateStatus": "passed",
+  "gateOutput": "ok",
+  "gateError": null,
+  "failedCommand": null,
+  "tokens": {
+    "tokens_out": 4700,
+    "tokens_in": 36600,
+    "model": "claude-sonnet-4.6",
+    "premiumRequests": 1,
+    "apiDurationMs": 0,
+    "sessionDurationMs": 0,
+    "codeChanges": null,
+    "vendor": "unknown"
+  },
+  "worker": "gh-copilot",
+  "model": "claude-sonnet-4.6",
+  "host": "vs-code-copilot",
+  "billingSurface": "GitHub Copilot subscription (VS Code)",
+  "attempts": 1,
+  "quorum": {
+    "score": 4,
+    "models": [
+      "claude-opus-4.6",
+      "gpt-5.3-codex"
+    ],
+    "reviewerFallback": false,
+    "reviewerCost": 0.1344,
+    "dryRunTokens": {
+      "tokens_in": 300100,
+      "tokens_out": 6000
+    }
+  },
+  "cost_usd": 0.01,
+  "cost_breakdown": {
+    "input_uncached": 0,
+    "input_cache_read": 0,
+    "input_cache_write_5m": 0,
+    "input_cache_write_1h": 0,
+    "output_total": 0,
+    "reasoning_tokens": 0,
+    "tier_adjustment": 0,
+    "subscription_cost": 0.01
+  }
+}

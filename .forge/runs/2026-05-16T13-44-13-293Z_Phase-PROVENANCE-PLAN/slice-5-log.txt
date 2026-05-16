@@ -1,0 +1,137 @@
+
+=== Slice 5: Docs + CHANGELOG + version bump to 0.7.0 ===
+Worker: gh-copilot
+Model: claude-sonnet-4.6
+Started: 2026-05-16T13:51:46.021Z
+
+=== STDOUT ===
+● Read pforge-prompt-1778939631755-lnpahs.txt
+  │ ~\AppData\Local\Temp\pforge-prompt-1778939631755-lnpahs.txt
+  └ 177 lines read
+
+● Read package.json
+  └ L1:10 (10 lines read)
+
+● List directory docs
+  └ 17 files found
+
+● Read 02-DATABASE-SCHEMA.md
+  │ docs\02-DATABASE-SCHEMA.md
+  └ 393 lines read
+
+● Read 04-MCP-SERVER.md
+  │ docs\04-MCP-SERVER.md
+  └ 533 lines read
+
+● Search (glob)
+  │ "db/migrations/003*"
+  └ 2 files found
+
+● Read 003-add-provenance-helpers.sql
+  │ db\migrations\003-add-provenance-helpers.sql
+  └ 54 lines read
+
+● Read README.md
+  └ L1:80 (80 lines read)
+
+● Read README.md
+  └ L80:200 (121 lines read)
+
+● Read README.md
+  └ L200:350 (150 lines read)
+
+● Read README.md
+  └ L350:500 (151 lines read)
+
+● Read README.md
+  └ L500:600 (101 lines read)
+
+● Search (grep)
+  │ "Differences from Nate|## Differences" (README.md)
+  └ 2 lines found
+
+Good, the README is quite long. I have enough context now. Let me look at the REST API table area more closely and the features section to know where to insert.
+
+Now let me implement all the changes. I'll note:
+
+1. The migration uses `metadata->'provenance'->>'contentHash'` and `metadata->'provenance'->>'codeHash'` (not `source_file_hash`/`code_hash` from metadata directly as the plan suggested — I need to document what's actually in the migration).
+2. The default `max_count` in the migration is 25, not 20.
+3. The RPC only matches on `source_file_hash`, not both hash columns.
+
+Let me make all the edits now.
+
+● Create CHANGELOG.md +23
+
+● Edit package.json +1 -1
+
+● Edit 04-MCP-SERVER.md +6
+  └ docs\04-MCP-SERVER.md
+
+● Edit 02-DATABASE-SCHEMA.md +44
+  └ docs\02-DATABASE-SCHEMA.md
+
+Now let me edit the README — add the `/memories/by-source` endpoint to the REST API table and a provenance helpers mention in the Features section.
+
+● Edit README.md +1
+
+● Edit README.md +1
+
+Now run the validation gate:
+
+● Search (grep)
+  │ "0\.7\.0" (package.json)
+  └ 1 line found
+
+● Search (grep)
+  │ "## \[0\.7\.0\]" (CHANGELOG.md)
+  └ 1 line found
+
+● Search (grep)
+  │ "Provenance helpers" (docs\02-DATABASE-SCHEMA.md)
+  └ 1 line found
+
+All three validation gates pass. Let me commit the changes:
+
+● Stage and check changes (shell)
+  │ cd E:\GitHub\OpenBrain && git add package.json CHANGELOG.md
+  │ docs/02-DATABASE-SCHEMA.md docs/04-MCP-SERVER.md README.md && git --no-pager
+  │ diff --cached --stat
+  └ 7 lines...
+
+● Commit Slice 5 changes (shell)
+  │ cd E:\GitHub\OpenBrain && git commit -m "docs: add provenance helpers
+  │ docs, CHANGELOG, bump to 0.7.0
+  │
+  │ - Bump version from 1.0.0 to 0.7.0 in package.json
+  │ - Create CHANGELOG.md with [0.7.0] entry…
+  └ 10 lines...
+
+All done. Here's a summary:
+
+**Slice 5 complete — 5 files, 75 lines added:**
+
+| File | Change |
+|------|--------|
+| `package.json` | Version `1.0.0` → `0.7.0` |
+| `CHANGELOG.md` | Created with `## [0.7.0]` entry |
+| `docs/02-DATABASE-SCHEMA.md` | Added `## Provenance helpers` section (generated columns, partial indexes, `match_thoughts_by_source` RPC) |
+| `docs/04-MCP-SERVER.md` | Added Source/Provenance Lookup note; tool count stays at 7 |
+| `README.md` | Added `GET /memories/by-source` to REST table + provenance helpers feature line |
+
+**Validation gate:** All three checks pass ✓
+
+<!-- PFORGE_TRAJECTORY:BEGIN -->
+I approached this slice by first reading all five target files plus the migration SQL to ground documentation in actual schema. The migration revealed important details that differed from the plan's initial description: the generated columns derive from `metadata->'provenance'->>'contentHash'` and `->>'codeHash'` paths, the default max_count is 25 not 20, and the RPC only matches on `source_file_hash`, not both hash columns. I documented what the code actually does rather than what the plan assumed.
+
+I made all edits in a tight sequence — version bump, CHANGELOG creation, schema doc, MCP doc, README — then validated with grep against the three gate strings before committing. The README edits were kept surgical: one new feature bullet and one new row in the REST API table, both using unique `old_str` anchors to avoid collateral damage in the large file.
+
+No dead-ends encountered. The main gotcha for future slices: the `docs/02-DATABASE-SCHEMA.md` section numbering shifted — the new "Provenance helpers" section sits between sections 7 and 8, unnumbered as an H2. If a future slice adds more sections or renumbers, watch for that. Also, `docs/04-MCP-SERVER.md` now has a "Source/Provenance Lookup" subsection just before "Client Configuration" — any future MCP doc work should be aware of this insertion point. The CHANGELOG uses Keep a Changelog format and should be appended to for future versions.
+<!-- PFORGE_TRAJECTORY:END -->
+
+
+
+=== STDERR ===
+
+Changes   +76 -1
+AI Units  58.3 (1m 41s)
+Tokens    ↑ 36.6k • ↓ 4.7k • 472.5k (cached)

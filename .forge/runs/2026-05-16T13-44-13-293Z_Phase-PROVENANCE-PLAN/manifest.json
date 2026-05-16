@@ -1,0 +1,46 @@
+{
+  "runId": "2026-05-16T13-44-13-293Z_Phase-PROVENANCE-PLAN",
+  "traceId": "ae77c939fd7b49be81467e5fb3ce5584",
+  "plan": "E:\\GitHub\\OpenBrain\\docs\\plans\\Phase-PROVENANCE-PLAN.md",
+  "startTime": "2026-05-16T13:44:13.343Z",
+  "endTime": "2026-05-16T13:55:36.468Z",
+  "status": "completed",
+  "artifacts": [
+    "run.json",
+    "summary.json",
+    "trace.json",
+    "events.log"
+  ],
+  "slices": [
+    {
+      "number": "1",
+      "result": "slice-1.json",
+      "log": "slice-1-log.txt",
+      "status": "passed"
+    },
+    {
+      "number": "2",
+      "result": "slice-2.json",
+      "log": "slice-2-log.txt",
+      "status": "passed"
+    },
+    {
+      "number": "3",
+      "result": "slice-3.json",
+      "log": "slice-3-log.txt",
+      "status": "passed"
+    },
+    {
+      "number": "4",
+      "result": "slice-4.json",
+      "log": "slice-4-log.txt",
+      "status": "passed"
+    },
+    {
+      "number": "5",
+      "result": "slice-5.json",
+      "log": "slice-5-log.txt",
+      "status": "passed"
+    }
+  ]
+}
