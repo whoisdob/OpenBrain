@@ -14,6 +14,11 @@ export interface ThoughtMetadata {
   action_items?: string[];
   dates?: string[];
   source?: string;
+  provenance?: {
+    origin: string;
+    original_id?: string;
+    imported_at?: string;
+  };
 }
 
 export interface ThoughtRow {
@@ -324,6 +329,63 @@ export async function deleteThought(
   );
 
   return { deleted: (rowCount ?? 0) > 0, id };
+}
+
+// ─── Search by Source / Provenance ───────────────────────────────────
+
+export async function searchThoughtsBySource(
+  pool: pg.Pool,
+  source: string,
+  options: {
+    project?: string;
+    created_by?: string;
+    include_archived?: boolean;
+    limit?: number;
+  } = {}
+): Promise<ThoughtRow[]> {
+  const conditions: string[] = [];
+  const params: unknown[] = [];
+  let idx = 0;
+
+  // Match on metadata.source OR metadata.provenance.origin
+  idx++;
+  conditions.push(
+    `(metadata->>'source' = $${idx} OR metadata->'provenance'->>'origin' = $${idx})`
+  );
+  params.push(source);
+
+  if (options.project) {
+    idx++;
+    conditions.push(`project = $${idx}`);
+    params.push(options.project);
+  }
+
+  if (options.created_by) {
+    idx++;
+    conditions.push(`created_by = $${idx}`);
+    params.push(options.created_by);
+  }
+
+  if (!options.include_archived) {
+    conditions.push(`(archived = false OR archived IS NULL)`);
+  }
+
+  const limit = options.limit ?? 50;
+  idx++;
+  params.push(limit);
+
+  const whereClause = conditions.join(" AND ");
+
+  const { rows } = await pool.query<ThoughtRow>(
+    `SELECT id, content, metadata, project, created_by, archived, supersedes, created_at
+     FROM thoughts
+     WHERE ${whereClause}
+     ORDER BY created_at DESC
+     LIMIT $${idx}`,
+    params
+  );
+
+  return rows;
 }
 
 // ─── Batch Insert ────────────────────────────────────────────────────

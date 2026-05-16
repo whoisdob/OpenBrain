@@ -46,5 +46,17 @@
     "attempts": 1,
     "duration_ms": 149302,
     "cost_usd": 0.01
+  },
+  {
+    "date": "2026-05-16T13:49:51.259Z",
+    "plan": "Phase-PROVENANCE-PLAN",
+    "sliceId": "3",
+    "sliceTitle": "Extend `queries.ts` — `ThoughtMetadata.provenance` + `searchThoughtsBySource`",
+    "sliceType": "execute",
+    "model": "claude-sonnet-4.6",
+    "status": "passed",
+    "attempts": 1,
+    "duration_ms": 51902,
+    "cost_usd": 0.01
   }
 ]

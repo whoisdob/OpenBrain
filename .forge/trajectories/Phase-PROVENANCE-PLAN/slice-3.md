@@ -1,0 +1,7 @@
+I extended the ThoughtMetadata interface with a provenance sub-object containing origin, original_id, and imported_at fields, all optional. The provenance field itself is optional to maintain backward compatibility with existing thoughts that lack it.
+
+For searchThoughtsBySource, I followed the same parameterized query pattern used by listThoughts — building conditions and params arrays with an incrementing index. The function matches on both the legacy metadata.source field and the new metadata.provenance.origin field using an OR clause, so callers get results regardless of which format was used to store the source. This dual-match approach avoids a breaking migration requirement.
+
+I considered adding a GIN index hint or a dedicated SQL function like match_thoughts, but since the existing codebase uses inline queries for list-style operations and only uses stored functions for vector similarity search, I kept it consistent. A future slice that needs high-performance source lookups might want to add a GIN index on metadata->'provenance'->>'origin'.
+
+Key locations a later slice should know about: ThoughtMetadata is the shared type used by insertThought, updateThought, batchInsertThoughts, and the new searchThoughtsBySource. The BatchThoughtInput interface also references ThoughtMetadata, so any batch import pipeline will automatically support provenance. The searchThoughtsBySource function lives just above batchInsertThoughts in the file.
