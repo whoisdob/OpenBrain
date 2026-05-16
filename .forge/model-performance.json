@@ -22,5 +22,17 @@
     "attempts": 3,
     "duration_ms": 716558,
     "cost_usd": 0.01
+  },
+  {
+    "date": "2026-05-16T13:46:29.464Z",
+    "plan": "Phase-PROVENANCE-PLAN",
+    "sliceId": "1",
+    "sliceTitle": "Migration 003 + rollback file",
+    "sliceType": "migration",
+    "model": "claude-sonnet-4.6",
+    "status": "passed",
+    "attempts": 1,
+    "duration_ms": 116903,
+    "cost_usd": 0.01
   }
 ]
