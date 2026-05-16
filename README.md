@@ -83,6 +83,7 @@ flowchart LR
 
 - **Semantic Search** — Find thoughts by *meaning*, not keywords. Ask "what did we decide about caching?" and get results even if you never used the word "caching" in the original thought.
 - **Auto-Metadata Extraction** — Every thought is automatically classified: type (decision, pattern, bug, etc.), topics, people mentioned, action items, dates. No manual tagging.
+- **Provenance Helpers** — Generated columns and partial indexes for exact-source deduplication via `match_thoughts_by_source` RPC, plus a `GET /memories/by-source` REST endpoint.
 - **9 AI Clients Supported** — VS Code Copilot, Claude Code, Claude Desktop, Cursor, Windsurf, ChatGPT, Gemini, Grok, and any MCP-compatible client.
 - **REST API** — Direct HTTP access for scripts, webhooks, CI/CD integrations, and non-MCP tools. Every MCP tool has a REST equivalent.
 - **Multi-Developer Teams** — Optional `created_by` field lets 1-3 devs share one instance with per-user filtering.
@@ -308,6 +309,7 @@ The REST API provides direct HTTP access (no MCP protocol needed).
 | `PUT` | `/memories/:id` | Update a thought (re-embeds + re-extracts metadata) |
 | `DELETE` | `/memories/:id` | Delete a thought permanently |
 | `GET` | `/stats` | Brain statistics (supports `?project=` and `?created_by=` query params) |
+| `GET` | `/memories/by-source` | Retrieve thoughts by source hash (supports `source` (required), `project`, `created_by`, `include_archived`, `limit`) |
 
 ### Examples
 

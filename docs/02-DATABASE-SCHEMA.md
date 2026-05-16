@@ -355,6 +355,50 @@ The `created_by` field is a free-text string — use whatever identifier makes s
 
 ---
 
+## Provenance helpers
+
+Migration `003-add-provenance-helpers.sql` adds generated columns, partial indexes, and an RPC function for exact-source lookup and deduplication. This is **additive** to the existing `match_thoughts` vector search — it is intended for exact-source hash matching, not semantic recall.
+
+### Generated columns
+
+Two generated columns are derived from the `metadata.provenance` JSONB sub-object:
+
+| Column | Expression | Purpose |
+|---|---|---|
+| `source_file_hash` | `metadata->'provenance'->>'contentHash'` | Content hash of the originating source file |
+| `code_hash` | `metadata->'provenance'->>'codeHash'` | Hash of the specific code block or snippet |
+
+Both columns are `TEXT GENERATED ALWAYS AS (...) STORED`, so they update automatically whenever `metadata` changes.
+
+### Partial indexes
+
+Only non-null rows are indexed to keep the indexes compact:
+
+- `idx_thoughts_source_file_hash` — B-tree on `source_file_hash WHERE source_file_hash IS NOT NULL`
+- `idx_thoughts_code_hash` — B-tree on `code_hash WHERE code_hash IS NOT NULL`
+
+### RPC: `match_thoughts_by_source`
+
+```sql
+match_thoughts_by_source(
+    source_hash      TEXT,
+    max_count        INT     DEFAULT 25,
+    project_filter   TEXT    DEFAULT NULL,
+    include_archived BOOLEAN DEFAULT false
+)
+RETURNS TABLE (id, content, metadata, project, created_by, created_at)
+```
+
+Returns thoughts whose `source_file_hash` matches `source_hash`, ordered by `created_at DESC`. Use it for exact-source deduplication or to find all thoughts captured from the same file.
+
+**Typical usage:**
+
+```sql
+select * from match_thoughts_by_source('sha256:abc...', 10, 'openbrain', false);
+```
+
+---
+
 ## 8. Content Chunking Strategy (For Long-Form Content)
 
 For documents longer than ~500 words, vector quality degrades. Use chunking:

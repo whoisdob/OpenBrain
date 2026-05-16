@@ -267,6 +267,12 @@ flowchart TD
 
 ---
 
+## Source/Provenance Lookup
+
+Source-hash retrieval is exposed via the **REST API** (`GET /memories/by-source`) and the **database RPC** `match_thoughts_by_source`, not via a dedicated MCP tool. This keeps the MCP tool count at 7 while still providing exact-source deduplication for scripts, CI pipelines, and direct database consumers. See [02-DATABASE-SCHEMA.md — Provenance helpers](02-DATABASE-SCHEMA.md#provenance-helpers) for the full schema details.
+
+---
+
 ## Client Configuration
 
 ### Self-Hosted (K8s + Tailscale)
