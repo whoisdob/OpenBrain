@@ -3,3 +3,4 @@
 {"_v":1,"timestamp":"2026-05-16T13:46:29.465Z","sliceNumber":"1","sliceTitle":"Migration 003 + rollback file","complexityScore":3,"quorumUsed":true,"quorumNeeded":true,"status":"passed"}
 {"_v":1,"timestamp":"2026-05-16T13:48:59.064Z","sliceNumber":"2","sliceTitle":"Wire `pforge-sdk/hallmark` into `package.json` + integration test for the migration","complexityScore":4,"quorumUsed":true,"quorumNeeded":true,"status":"passed"}
 {"_v":1,"timestamp":"2026-05-16T13:49:51.259Z","sliceNumber":"3","sliceTitle":"Extend `queries.ts` — `ThoughtMetadata.provenance` + `searchThoughtsBySource`","complexityScore":2,"quorumUsed":false,"quorumNeeded":false,"status":"passed"}
+{"_v":1,"timestamp":"2026-05-16T13:51:45.635Z","sliceNumber":"4","sliceTitle":"API surface — validation on POST, `capabilities` on /health, GET /memories/by-source","complexityScore":2,"quorumUsed":false,"quorumNeeded":false,"status":"passed"}

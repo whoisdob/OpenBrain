@@ -17,6 +17,7 @@ import {
   updateThought,
   deleteThought,
   batchInsertThoughts,
+  searchThoughtsBySource,
   type ListFilters,
   type BatchThoughtInput,
 } from "../db/queries.js";
@@ -45,7 +46,20 @@ export function createApi(): Hono {
   // ─── Health Check ────────────────────────────────────────────────
 
   app.get("/health", (c) =>
-    c.json({ status: "healthy", service: "open-brain-api" })
+    c.json({
+      status: "healthy",
+      service: "open-brain-api",
+      capabilities: [
+        "capture",
+        "search",
+        "list",
+        "batch",
+        "update",
+        "delete",
+        "stats",
+        "by-source",
+      ],
+    })
   );
 
   // ─── Capture Memory ──────────────────────────────────────────────
@@ -65,6 +79,14 @@ export function createApi(): Hono {
 
     if (body.supersedes && !UUID_RE.test(body.supersedes)) {
       return c.json({ error: "supersedes must be a valid UUID" }, 400);
+    }
+
+    if (body.source !== undefined && (typeof body.source !== "string" || body.source.trim().length === 0)) {
+      return c.json({ error: "source must be a non-empty string" }, 400);
+    }
+
+    if (body.project !== undefined && (typeof body.project !== "string" || body.project.trim().length === 0)) {
+      return c.json({ error: "project must be a non-empty string" }, 400);
     }
 
     try {
@@ -307,6 +329,51 @@ export function createApi(): Hono {
       return c.json(
         { error: "Failed to delete thought", detail: message },
         502
+      );
+    }
+  });
+
+  // ─── Get Memories by Source ──────────────────────────────────────────
+
+  app.get("/memories/by-source", async (c) => {
+    const source = c.req.query("source");
+
+    if (!source || source.trim().length === 0) {
+      return c.json({ error: "source query parameter is required" }, 400);
+    }
+
+    try {
+      const project = c.req.query("project");
+      const created_by = c.req.query("created_by");
+      const include_archived = c.req.query("include_archived") === "true";
+      const limitParam = c.req.query("limit");
+      const limit = limitParam ? parseInt(limitParam, 10) : undefined;
+
+      const results = await searchThoughtsBySource(pool, source, {
+        project: project ?? undefined,
+        created_by: created_by ?? undefined,
+        include_archived,
+        limit,
+      });
+
+      return c.json({
+        source,
+        count: results.length,
+        results: results.map((r) => ({
+          id: r.id,
+          content: r.content,
+          metadata: r.metadata,
+          project: r.project,
+          created_by: r.created_by,
+          created_at: r.created_at.toISOString(),
+        })),
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[api] By-source lookup failed:", message);
+      return c.json(
+        { error: "Failed to look up memories by source", detail: message },
+        500
       );
     }
   });
