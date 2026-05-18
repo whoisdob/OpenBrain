@@ -174,3 +174,46 @@ describe("validation: logWarnings", () => {
     expect(warnSpy).not.toHaveBeenCalled();
   });
 });
+
+describe("validation: embedding truncation warning", () => {
+  const opts = { defaultSource: "test", strict: false };
+  const SAFE = 6000;
+
+  beforeEach(() => {
+    delete process.env.OPENBRAIN_EMBED_SAFE_BYTES;
+  });
+
+  it("does not warn when content is at or below the safe ceiling", () => {
+    const result = validateCaptureInput({ content: "x".repeat(SAFE) }, opts);
+    expect(result.warnings).toHaveLength(0);
+    expect(result.metadata.embedding_truncated).toBeUndefined();
+    expect(result.metadata.embedding_indexed_bytes).toBeUndefined();
+  });
+
+  it("warns and tags metadata when content exceeds the safe ceiling", () => {
+    const big = "x".repeat(SAFE + 500);
+    const result = validateCaptureInput({ content: big }, opts);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]!.reason).toBe("embedding_truncated");
+    expect(result.warnings[0]!.field).toBe("content");
+    expect(result.warnings[0]!.message).toMatch(/6500 bytes/);
+    expect(result.metadata.embedding_truncated).toBe(true);
+    expect(result.metadata.embedding_indexed_bytes).toBe(SAFE);
+    expect(result.metadata.content_bytes).toBe(SAFE + 500);
+  });
+
+  it("never escalates the truncation warning under strict mode", () => {
+    const big = "x".repeat(SAFE + 1);
+    const result = validateCaptureInput({ content: big }, { defaultSource: "test", strict: true });
+    expect(result.warnings).toHaveLength(1);
+    expect(result.warnings[0]!.reason).toBe("embedding_truncated");
+  });
+
+  it("honours OPENBRAIN_EMBED_SAFE_BYTES override", () => {
+    process.env.OPENBRAIN_EMBED_SAFE_BYTES = "100";
+    const result = validateCaptureInput({ content: "x".repeat(200) }, opts);
+    expect(result.warnings).toHaveLength(1);
+    expect(result.metadata.embedding_indexed_bytes).toBe(100);
+    expect(result.metadata.content_bytes).toBe(200);
+  });
+});

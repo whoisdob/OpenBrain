@@ -12,9 +12,30 @@
 
 export interface CaptureWarning {
   field: string;
-  reason: "unknown_field" | "deprecated_top_level" | "wrong_type";
+  reason:
+    | "unknown_field"
+    | "deprecated_top_level"
+    | "wrong_type"
+    | "embedding_truncated";
   message: string;
   suggestion?: string;
+}
+
+/**
+ * Approximate byte ceiling for the embedder's context window. Content above
+ * this threshold is stored intact but only the first ~N bytes are reflected
+ * in the embedding (semantic search will not match passages past the cutoff).
+ *
+ * Default tuned for Ollama `nomic-embed-text` (2048-token context, ~3 chars/
+ * token for code-heavy markdown). Override via `OPENBRAIN_EMBED_SAFE_BYTES`.
+ */
+export function getEmbedSafeBytes(): number {
+  const raw = process.env.OPENBRAIN_EMBED_SAFE_BYTES;
+  if (raw) {
+    const n = parseInt(raw, 10);
+    if (Number.isFinite(n) && n > 0) return n;
+  }
+  return 6000;
 }
 
 export interface ValidatedCapture {
@@ -194,6 +215,23 @@ export function validateCaptureInput(
       reason: "unknown_field",
       message: `'${key}' was ignored because the capture API does not recognise it.`,
       suggestion: `Nest it under 'metadata' if you want it preserved, or remove it.`,
+    });
+  }
+
+  // Embedding-context check. Informational only — not escalated in strict mode
+  // because oversized content is a data property, not a shape bug. The full
+  // content still gets stored; only the embedding is truncated by the model.
+  const contentBytes = Buffer.byteLength(content, "utf8");
+  const safeBytes = getEmbedSafeBytes();
+  if (contentBytes > safeBytes) {
+    metadata.embedding_truncated = true;
+    metadata.embedding_indexed_bytes = safeBytes;
+    metadata.content_bytes = contentBytes;
+    warnings.push({
+      field: "content",
+      reason: "embedding_truncated",
+      message: `Content is ${contentBytes} bytes; embedder will index only the first ~${safeBytes} bytes. Full content is stored, but semantic search may not match passages past byte ${safeBytes}.`,
+      suggestion: `Split this into smaller captures (e.g. one per H3 section) if you need search coverage of the tail.`,
     });
   }
 

@@ -64,6 +64,7 @@ export function createApi(): Hono {
       "by-source",
       "strict-validation",
       "warning-channel",
+      "embed-truncation-warning",
     ];
     if (isStrictIngestEnabled()) capabilities.push("strict-ingest");
     return c.json({

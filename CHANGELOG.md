@@ -4,6 +4,20 @@ All notable changes to this project will be documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.1.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [0.7.4] - 2026-05-18
+
+### Added
+- Embedding-truncation warning: captures whose content exceeds the embedder's
+  context window now return a `warnings[]` entry with reason `embedding_truncated`
+  and tag `metadata.embedding_truncated = true` + `metadata.embedding_indexed_bytes`
+  + `metadata.content_bytes`. Full content is still stored — only the embedding is
+  truncated by the model. Callers know up-front that semantic search will not
+  match passages past the cutoff and can choose to split into smaller captures.
+- New `OPENBRAIN_EMBED_SAFE_BYTES` env var (default `6000`, tuned for Ollama
+  `nomic-embed-text` 2048-token context) so deployments with larger-context
+  embedders can raise the threshold.
+- `/health` advertises new capability `embed-truncation-warning`.
+
 ## [0.7.3] - 2026-05-18
 
 ### Changed
