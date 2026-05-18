@@ -1,6 +1,6 @@
 {
   "name": "openbrain",
-  "version": "0.7.0",
+  "version": "0.7.3",
   "description": "Personal semantic memory system with MCP interface",
   "author": "Scott Nichols",
   "license": "MIT",

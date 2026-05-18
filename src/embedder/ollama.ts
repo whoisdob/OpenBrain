@@ -29,18 +29,26 @@ export class OllamaEmbedder implements Embedder {
     const response = await fetch(`${this.endpoint}/api/embed`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ model: this.embedModel, input: text }),
+      body: JSON.stringify({ model: this.embedModel, input: text, truncate: true }),
     });
 
     if (!response.ok) {
-      throw new Error(`Ollama embed failed: ${response.status} ${response.statusText}`);
+      const bodyText = await response.text().catch(() => "");
+      const snippet = bodyText.slice(0, 300).replace(/\s+/g, " ").trim();
+      throw new Error(
+        `Ollama embed failed: ${response.status} ${response.statusText}` +
+          (snippet ? ` — ${snippet}` : "") +
+          ` (content_bytes=${Buffer.byteLength(text, "utf8")})`
+      );
     }
 
-    const data = (await response.json()) as { embeddings: number[][] };
-    const embedding = data.embeddings[0];
+    const data = (await response.json()) as { embeddings?: number[][] };
+    const embedding = data.embeddings?.[0];
 
-    if (!embedding) {
-      throw new Error("Ollama returned empty embedding");
+    if (!embedding || embedding.length === 0) {
+      throw new Error(
+        `Ollama returned no vector for this content — likely empty, whitespace-only, or unsupported by ${this.embedModel} (content_bytes=${Buffer.byteLength(text, "utf8")})`
+      );
     }
 
     return embedding;
