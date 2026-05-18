@@ -53,6 +53,8 @@ There are **five canonical paths**. Pick one by interviewing the user — do not
    - Multi-replica K8s + SSE drops → fix is `sessionAffinity: ClientIP`.
    - Supabase `prepared statement already exists` → fix is pooler URL (port 6543), not direct (5432).
    - Claude Desktop "MCP server failed" → almost always wrong port (`8080` for MCP, not `8000`) or key mismatch.
+   - `404` on `/memories/*` from outside the cluster → REST (port 8000) is **in-cluster only** by design; the Tailscale Funnel only exposes MCP on 8080. See [docs/TROUBLESHOOTING.md](docs/TROUBLESHOOTING.md#network-exposure-which-ports-go-where).
+   - External MCP client reports "0 failures" but rows are missing → the client is ignoring `res.isError` on tool responses. MCP returns tool-level errors inside a 200 envelope and silently treating them as success is a known footgun. Tell the client to check `isError` and propagate the server body.
 
 ---
 

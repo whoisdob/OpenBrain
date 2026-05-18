@@ -268,6 +268,32 @@ You're using the **direct** connection (port 5432) when Supabase wants you on th
 
 ---
 
+## Network exposure (which ports go where)
+
+Open Brain listens on **two ports**:
+
+| Port | Protocol | Auth | Intended scope |
+|---|---|---|---|
+| `8000` | REST (`/health`, `/memories/*`, `/stats`) | None — assumes in-cluster / internal | In-cluster or trusted-network only |
+| `8080` | MCP-over-SSE (`/sse`, `/messages`) | `MCP_ACCESS_KEY` via `x-brain-key` header or `?key=` query | Safe to expose publicly |
+
+### Self-hosted K8s + Tailscale Funnel: REST is in-cluster only
+
+The K8s manifest in `deploy/on-prem/k8s/` ships a single Tailscale Funnel that forwards to **port 8080** (MCP). This is deliberate — REST has no auth, so we do not expose it publicly. Symptoms of mis-assuming REST is reachable:
+
+- `POST <funnel-host>/memories` → `404 Not Found`
+- `POST <funnel-host>/memories/batch` → `404 Not Found`
+- `GET <funnel-host>/health` → returns the **MCP** health payload (`service: "open-brain-mcp"`), not the REST one
+
+External tooling that wants high-throughput bulk capture has two correct paths:
+
+1. **Use MCP-over-SSE** with `capture_thoughts` (batch). Make sure the client honours `res.isError` on tool responses — MCP can return tool-level errors with a 200 envelope, and silently treating them as success was the root cause of the 2026-05-18 Plan-Forge "0 failures / 20 records lost" incident.
+2. **Run the tool inside the cluster** (e.g. a Job or `kubectl run` pod) and call REST on `openbrain-api.openbrain.svc.cluster.local:8000` directly.
+
+Do **not** add a second Funnel for port 8000 without first putting auth in front of the REST API. The deployment assumes REST is internal-only.
+
+---
+
 ## Still stuck?
 
 1. Run `scripts/verify.{ps1,sh}` and save the output.
