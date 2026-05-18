@@ -70,7 +70,11 @@ spec:
                   MANIFEST="${BACKUP_DIR}/manifest_${BACKUP_DATE}.json"
                   LOG_FILE="${BACKUP_DIR}/backup_${BACKUP_DATE}.log"
                   RETENTION_DAYS=30
-                  MIN_BACKUP_SIZE=10000   # 10 KB — anything smaller means dump failed silently
+                  # 2 KB floor — catches truly empty/aborted dumps. OpenBrain
+                  # may legitimately produce small backups when the thoughts
+                  # table has few rows; the real safety check below is row-count
+                  # comparison against the live DB, not file size.
+                  MIN_BACKUP_SIZE=2000
 
                   echo "========================================"
                   echo "openbrain logical backup — ${BACKUP_DATE}"
@@ -122,8 +126,6 @@ spec:
                   fi
                   SIZE_HUMAN=$(du -h "${BACKUP_GZ}" | cut -f1)
                   echo "OK — compressed size: ${SIZE_HUMAN}"
-
-                  # --- Stage 3: manifest (per-table sizes & row counts) ---
                   echo ""
                   echo "Stage 3: manifest"
                   kubectl exec -n "${NS}" "${POD}" -- \
