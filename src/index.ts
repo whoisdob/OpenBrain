@@ -16,9 +16,9 @@
 import http from "node:http";
 import { serve } from "@hono/node-server";
 
-import { initializeDatabase, closePool } from "./db/connection.js";
+import { initializeDatabase, closePool, getPool } from "./db/connection.js";
 import { createApi } from "./api/routes.js";
-import { createMcpServer } from "./mcp/server.js";
+import { createMcpServer, type AgentIdentity } from "./mcp/server.js";
 import { SSEServerTransport } from "@modelcontextprotocol/sdk/server/sse.js";
 
 async function main(): Promise<void> {
@@ -52,6 +52,35 @@ async function main(): Promise<void> {
   const mcpPort = parseInt(process.env.MCP_PORT ?? "8080", 10);
   const mcpAccessKey = process.env.MCP_ACCESS_KEY ?? "";
 
+  // lsje39 / D-103: map each per-agent MCP key to an agent id. The legacy
+  // MCP_ACCESS_KEY is Dan's (main); MCP_ACCESS_KEY_NICOLE is Nicole's. read_scope
+  // is resolved live from user_config (the seed in scripts/read-scope.py), so the
+  // single source of truth stays the DB row — not duplicated here.
+  const keyToAgent = new Map<string, string>();
+  if (mcpAccessKey) keyToAgent.set(mcpAccessKey, "dan");
+  if (process.env.MCP_ACCESS_KEY_NICOLE)
+    keyToAgent.set(process.env.MCP_ACCESS_KEY_NICOLE, "nicole");
+
+  async function resolveIdentity(
+    key: string | null
+  ): Promise<AgentIdentity | undefined> {
+    if (!key) return undefined;
+    const agent = keyToAgent.get(key);
+    if (!agent) return undefined;
+    try {
+      const { rows } = await getPool().query(
+        "SELECT value FROM user_config WHERE user_id = $1 AND key = 'read_scope'",
+        [agent]
+      );
+      const read_scope: string[] = rows[0]?.value ? JSON.parse(rows[0].value) : [];
+      return { agent, read_scope };
+    } catch (err) {
+      // Fail safe for SHADOW: empty scope just logs WOULD-RESTRICT, never blocks.
+      console.error(`[scope-shadow] read_scope lookup failed for agent=${agent}:`, err);
+      return { agent, read_scope: [] };
+    }
+  }
+
   // Track active SSE transports for cleanup
   const transports = new Map<string, SSEServerTransport>();
 
@@ -83,11 +112,15 @@ async function main(): Promise<void> {
       const key =
         (req.headers["x-brain-key"] as string | undefined) ??
         url.searchParams.get("key");
-      if (mcpAccessKey && key !== mcpAccessKey) {
+      // Auth: when MCP_ACCESS_KEY is set, only keys mapped to an agent are valid
+      // (the legacy key still maps to Dan, so existing clients keep working).
+      if (mcpAccessKey && !(key && keyToAgent.has(key))) {
         res.writeHead(401, { "Content-Type": "application/json" });
         res.end(JSON.stringify({ error: "Unauthorized" }));
         return;
       }
+
+      const identity = await resolveIdentity(key);
 
       const transport = new SSEServerTransport("/messages", res);
       const sessionId = transport.sessionId;
@@ -98,9 +131,12 @@ async function main(): Promise<void> {
         console.log(`[mcp] SSE session ${sessionId} closed`);
       });
 
-      const server = createMcpServer();
+      const server = createMcpServer(identity);
       await server.connect(transport);
-      console.log(`[mcp] SSE session ${sessionId} connected`);
+      console.log(
+        `[mcp] SSE session ${sessionId} connected` +
+          (identity ? ` (agent=${identity.agent}, scope=[${identity.read_scope.join(",")}])` : "")
+      );
       return;
     }
 

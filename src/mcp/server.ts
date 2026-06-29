@@ -36,7 +36,34 @@ import {
 
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
-export function createMcpServer(): Server {
+// lsje39 / D-103 (docs/26 §3, §7): a per-agent caller identity, resolved from the
+// presented MCP key in index.ts and threaded into createMcpServer(). `read_scope`
+// is the list of `created_by` namespaces this agent may read (and write), sourced
+// from user_config (the seed in scripts/read-scope.py).
+export type AgentIdentity = { agent: string; read_scope: string[] };
+
+// SHADOW phase (docs/26 §7 step 2): observe-only. Logs whether a caller's
+// created_by falls within its server-side read_scope. NOTHING is blocked here —
+// this is the no-op observation that must show zero WOULD-RESTRICT on legitimate
+// reads before enforcement is flipped on (step 3). Read and write target sets
+// coincide in the F&F model (own ∪ circles == read_scope).
+function shadowScope(
+  identity: AgentIdentity | undefined,
+  tool: string,
+  createdBy: string | undefined,
+  kind: "read" | "write"
+): void {
+  if (!identity) return; // unscoped/legacy caller — nothing to attribute
+  const scope = identity.read_scope;
+  const inScope = createdBy !== undefined && scope.includes(createdBy);
+  const verdict = inScope ? "allow" : "WOULD-RESTRICT";
+  console.log(
+    `[scope-shadow] agent=${identity.agent} kind=${kind} tool=${tool} ` +
+      `created_by=${createdBy ?? "(unset/all)"} scope=[${scope.join(",")}] verdict=${verdict}`
+  );
+}
+
+export function createMcpServer(identity?: AgentIdentity): Server {
   const server = new Server(
     { name: "open-brain", version: "1.0.0" },
     { capabilities: { tools: {} } }
@@ -67,8 +94,8 @@ export function createMcpServer(): Server {
             },
             threshold: {
               type: "number",
-              description: "Minimum similarity score 0-1 (default: 0.5)",
-              default: 0.5,
+              description: "Minimum similarity score 0-1 (default: 0.3)",
+              default: 0.3,
             },
             project: {
               type: "string",
@@ -161,10 +188,10 @@ export function createMcpServer(): Server {
             },
             created_by: {
               type: "string",
-              description: "User who created this thought (optional, for multi-developer provenance)",
+              description: "Namespace owner. Required. Values: 'dan' (Dan's private context), 'family' (shared household — visible to all agents), 'nicole' (Nicole's private context). Never omit.",
             },
           },
-          required: ["content"],
+          required: ["content", "created_by"],
         },
       },
       {
@@ -250,10 +277,10 @@ export function createMcpServer(): Server {
             },
             created_by: {
               type: "string",
-              description: "User who created these thoughts (optional, for multi-developer provenance)",
+              description: "Namespace owner. Required. Values: 'dan' (Dan's private context), 'family' (shared household — visible to all agents), 'nicole' (Nicole's private context). Never omit.",
             },
           },
-          required: ["thoughts"],
+          required: ["thoughts", "created_by"],
         },
       },
     ],
@@ -270,12 +297,13 @@ export function createMcpServer(): Server {
         case "search_thoughts": {
           const query = args?.query as string;
           const limit = (args?.limit as number) ?? 10;
-          const threshold = (args?.threshold as number) ?? 0.5;
+          const threshold = (args?.threshold as number) ?? 0.3;
           const project = args?.project as string | undefined;
           const type = args?.type as string | undefined;
           const topic = args?.topic as string | undefined;
           const include_archived = (args?.include_archived as boolean) ?? false;
           const created_by = args?.created_by as string | undefined;
+          shadowScope(identity, "search_thoughts", created_by, "read");
 
           // Build JSONB filter from type/topic
           const filter: Record<string, unknown> = {};
@@ -315,6 +343,7 @@ export function createMcpServer(): Server {
             created_by: args?.created_by as string | undefined,
             include_archived: (args?.include_archived as boolean) ?? false,
           };
+          shadowScope(identity, "list_thoughts", filters.created_by, "read");
 
           const results = await listThoughts(pool, filters);
 
@@ -349,6 +378,8 @@ export function createMcpServer(): Server {
             }
             throw err;
           }
+
+          shadowScope(identity, "capture_thought", input.created_by, "write");
 
           // Generate embedding and extract metadata in parallel
           const [embedding, autoMetadata] = await Promise.all([
@@ -397,6 +428,7 @@ export function createMcpServer(): Server {
         case "thought_stats": {
           const project = args?.project as string | undefined;
           const created_by = args?.created_by as string | undefined;
+          shadowScope(identity, "thought_stats", created_by, "read");
           const stats = await getThoughtStats(pool, project, created_by);
 
           return {
@@ -485,6 +517,10 @@ export function createMcpServer(): Server {
               };
             }
             throw err;
+          }
+
+          for (const it of batch.items) {
+            shadowScope(identity, "capture_thoughts", it.created_by, "write");
           }
 
           // Process each item: embed + extract metadata + merge with caller metadata
