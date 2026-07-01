@@ -24,6 +24,8 @@ import {
   batchInsertThoughts,
   type ListFilters,
   type BatchThoughtInput,
+  type SearchResult,
+  type ThoughtRow,
 } from "../db/queries.js";
 import { getEmbedder } from "../embedder/index.js";
 import {
@@ -42,11 +44,12 @@ const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
 // from user_config (the seed in scripts/read-scope.py).
 export type AgentIdentity = { agent: string; read_scope: string[] };
 
-// SHADOW phase (docs/26 §7 step 2): observe-only. Logs whether a caller's
-// created_by falls within its server-side read_scope. NOTHING is blocked here —
-// this is the no-op observation that must show zero WOULD-RESTRICT on legitimate
-// reads before enforcement is flipped on (step 3). Read and write target sets
-// coincide in the F&F model (own ∪ circles == read_scope).
+// lsje39 / D-103 read-scope filter. Two phases, chosen by SCOPE_ENFORCE:
+//   unset (SHADOW, docs/26 §7 step 2): observe-only, logs verdict, blocks NOTHING.
+//   "1"  (ENFORCE, step 3): reads are actually narrowed/rejected server-side.
+// Read and write target sets coincide in the F&F model (own ∪ circles == read_scope).
+const SCOPE_ENFORCE = process.env.SCOPE_ENFORCE === "1";
+
 function shadowScope(
   identity: AgentIdentity | undefined,
   tool: string,
@@ -56,11 +59,47 @@ function shadowScope(
   if (!identity) return; // unscoped/legacy caller — nothing to attribute
   const scope = identity.read_scope;
   const inScope = createdBy !== undefined && scope.includes(createdBy);
-  const verdict = inScope ? "allow" : "WOULD-RESTRICT";
+  const mode = SCOPE_ENFORCE ? "enforce" : "shadow";
+  // In enforce mode an out-of-scope read is narrowed (unset) or rejected (explicit),
+  // so the verdict reflects what actually happened; in shadow it is hypothetical.
+  const verdict = inScope
+    ? "allow"
+    : SCOPE_ENFORCE
+      ? createdBy === undefined
+        ? "narrowed"
+        : "REJECTED"
+      : "WOULD-RESTRICT";
   console.log(
-    `[scope-shadow] agent=${identity.agent} kind=${kind} tool=${tool} ` +
+    `[scope-shadow] mode=${mode} agent=${identity.agent} kind=${kind} tool=${tool} ` +
       `created_by=${createdBy ?? "(unset/all)"} scope=[${scope.join(",")}] verdict=${verdict}`
   );
+}
+
+// Resolve a read to the namespace(s) actually queried (D-103 / docs/26 §7 step 3):
+//   reject         → an explicit created_by OUTSIDE scope: return empty, no query.
+//   namespaces=undefined → no enforcement (shadow/legacy/no-identity): query as-requested.
+//   namespaces=[x]       → a single in-scope value: query that one.
+//   namespaces=[…scope]  → an UNSET read: union across the whole read_scope (narrow, don't reject),
+//                          so legitimate unscoped reads (e.g. the briefing's list) keep working.
+function enforceRead(
+  identity: AgentIdentity | undefined,
+  requested: string | undefined
+): { reject: boolean; namespaces: string[] | undefined } {
+  if (!SCOPE_ENFORCE || !identity) {
+    return { reject: false, namespaces: requested === undefined ? undefined : [requested] };
+  }
+  const scope = identity.read_scope;
+  if (requested === undefined) return { reject: false, namespaces: scope };
+  if (scope.includes(requested)) return { reject: false, namespaces: [requested] };
+  return { reject: true, namespaces: undefined };
+}
+
+function emptyReadResult(count = 0) {
+  return {
+    content: [
+      { type: "text" as const, text: JSON.stringify({ count, results: [] }, null, 2) },
+    ],
+  };
 }
 
 export function createMcpServer(identity?: AgentIdentity): Server {
@@ -305,15 +344,32 @@ export function createMcpServer(identity?: AgentIdentity): Server {
           const created_by = args?.created_by as string | undefined;
           shadowScope(identity, "search_thoughts", created_by, "read");
 
+          const gate = enforceRead(identity, created_by);
+          if (gate.reject) return emptyReadResult();
+
           // Build JSONB filter from type/topic
           const filter: Record<string, unknown> = {};
           if (type) filter.type = type;
           if (topic) filter.topics = [topic];
 
           const queryEmbedding = await embedder.generateEmbedding(query);
-          const results = await searchThoughts(
-            pool, queryEmbedding, limit, threshold, filter, project, include_archived, created_by
-          );
+          const search = (cb: string | undefined) =>
+            searchThoughts(pool, queryEmbedding, limit, threshold, filter, project, include_archived, cb);
+
+          let results: SearchResult[];
+          if (gate.namespaces === undefined || gate.namespaces.length === 1) {
+            // unconstrained (shadow/legacy) or a single in-scope namespace
+            results = await search(gate.namespaces ? gate.namespaces[0] : created_by);
+          } else {
+            // UNSET read under enforcement → union across read_scope, re-ranked by similarity
+            const merged = new Map<string, SearchResult>();
+            for (const ns of gate.namespaces) {
+              for (const r of await search(ns)) merged.set(r.id, r);
+            }
+            results = [...merged.values()]
+              .sort((a, b) => b.similarity - a.similarity)
+              .slice(0, limit);
+          }
 
           const formatted = results.map((r) => ({
             content: r.content,
@@ -345,7 +401,27 @@ export function createMcpServer(identity?: AgentIdentity): Server {
           };
           shadowScope(identity, "list_thoughts", filters.created_by, "read");
 
-          const results = await listThoughts(pool, filters);
+          const listGate = enforceRead(identity, filters.created_by);
+          if (listGate.reject) return emptyReadResult();
+
+          let results: ThoughtRow[];
+          if (listGate.namespaces === undefined || listGate.namespaces.length === 1) {
+            results = await listThoughts(
+              pool,
+              listGate.namespaces ? { ...filters, created_by: listGate.namespaces[0] } : filters
+            );
+          } else {
+            // UNSET read under enforcement → union across read_scope, re-sorted by recency
+            const merged = new Map<string, ThoughtRow>();
+            for (const ns of listGate.namespaces) {
+              for (const r of await listThoughts(pool, { ...filters, created_by: ns })) {
+                merged.set(r.id, r);
+              }
+            }
+            results = [...merged.values()]
+              .sort((a, b) => b.created_at.getTime() - a.created_at.getTime())
+              .slice(0, 50);
+          }
 
           const formatted = results.map((r) => ({
             id: r.id,
