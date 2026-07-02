@@ -170,7 +170,19 @@ export function validateCaptureInput(
           })();
 
   const project = strictOptionalString(body, "project");
-  const created_by = strictOptionalString(body, "created_by");
+
+  const VALID_NAMESPACES = ["dan", "family", "nicole", "system-cron", "gift-radar-cron"];
+  if (body.created_by === undefined || body.created_by === null || body.created_by === "") {
+    throw new CaptureValidationError(
+      `created_by is required. Valid values: ${VALID_NAMESPACES.join(", ")}`
+    );
+  }
+  if (typeof body.created_by !== "string" || !VALID_NAMESPACES.includes(body.created_by)) {
+    throw new CaptureValidationError(
+      `created_by '${body.created_by}' is not a recognized namespace. Valid values: ${VALID_NAMESPACES.join(", ")}`
+    );
+  }
+  const created_by = body.created_by as string;
 
   let supersedes: string | undefined;
   if (body.supersedes !== undefined) {
@@ -295,7 +307,19 @@ export function validateBatchInput(
   }
 
   const inheritedProject = strictOptionalString(body, "project");
-  const inheritedCreatedBy = strictOptionalString(body, "created_by");
+
+  const VALID_NAMESPACES_BATCH = ["dan", "family", "nicole", "system-cron", "gift-radar-cron"];
+  if (body.created_by === undefined || body.created_by === null || body.created_by === "") {
+    throw new CaptureValidationError(
+      `created_by is required on the batch envelope. Valid values: ${VALID_NAMESPACES_BATCH.join(", ")}`
+    );
+  }
+  if (typeof body.created_by !== "string" || !VALID_NAMESPACES_BATCH.includes(body.created_by)) {
+    throw new CaptureValidationError(
+      `created_by '${body.created_by}' is not a recognized namespace. Valid values: ${VALID_NAMESPACES_BATCH.join(", ")}`
+    );
+  }
+  const inheritedCreatedBy = body.created_by as string;
   const inheritedSource =
     body.source === undefined
       ? opts.defaultSource
