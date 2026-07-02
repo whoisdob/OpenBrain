@@ -88,11 +88,14 @@ function shadowScope(
 // D-112 write gate: true = reject. created_by is validated-required on captures
 // (undefined only appeases the optional input type — reject it defensively);
 // for update/delete pass the target row's created_by.
-function rejectWrite(
+// Exported (flag as a defaulted parameter, symmetric with enforceRead) as the
+// unit-test seam — see __tests__/scope.test.ts.
+export function rejectWrite(
   identity: AgentIdentity | undefined,
-  createdBy: string | undefined
+  createdBy: string | undefined,
+  enforced: boolean = SCOPE_ENFORCE_WRITES
 ): boolean {
-  if (!SCOPE_ENFORCE_WRITES || !identity) return false;
+  if (!enforced || !identity) return false;
   return createdBy === undefined || !identity.read_scope.includes(createdBy);
 }
 
@@ -102,7 +105,7 @@ function rejectWrite(
 //   namespaces=[x]       → a single in-scope value: query that one.
 //   namespaces=[…scope]  → an UNSET read: union across the whole read_scope (narrow, don't reject),
 //                          so legitimate unscoped reads (e.g. the briefing's list) keep working.
-function enforceRead(
+export function enforceRead(
   identity: AgentIdentity | undefined,
   requested: string | undefined,
   // thought_stats rides SCOPE_ENFORCE_WRITES (the D-103 leftover surface), so the
