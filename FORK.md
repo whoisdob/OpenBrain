@@ -6,10 +6,20 @@ in production for **OpenAssistant** on the `oa-app` VM (`~/OpenBrain`,
 have. Treat it as a fork with stewardship duties, not a vendored dependency —
 OpenAssistant `docs/03` ADR-008 records this as an architectural fact.
 
-**⚠ The local commits exist ONLY in this clone.** `origin` is upstream
-(no push rights). Until the repo is pushed to a personal GitHub fork
-(recommended), the git history's off-box durability rides on the D-115 backup
-of the VM. If you sync from upstream, read the whole file first.
+**Off-box durability (s67):** the fork is mirrored at
+**github.com/whoisdob/OpenBrain** (`github` remote on this clone). `origin`
+stays upstream (no push rights). The VM holds no GitHub credential — push via
+the **Mac relay** (Dan's SSH key lives there):
+
+```bash
+# from the Mac, after committing here on the VM:
+git clone dobrien@100.114.150.46:OpenBrain /tmp/ob-relay
+git -C /tmp/ob-relay push git@github.com:whoisdob/OpenBrain.git master
+rm -rf /tmp/ob-relay
+```
+
+Push after every session that commits here. If you sync from upstream, read
+the whole file first.
 
 ## Why it is forked
 
