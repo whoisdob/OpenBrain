@@ -171,7 +171,7 @@ export function validateCaptureInput(
 
   const project = strictOptionalString(body, "project");
 
-  const VALID_NAMESPACES = ["dan", "family", "nicole", "system-cron", "gift-radar-cron"];
+  const VALID_NAMESPACES = ["aiden", "dan", "family", "nicole", "system-cron", "gift-radar-cron"];
   if (body.created_by === undefined || body.created_by === null || body.created_by === "") {
     throw new CaptureValidationError(
       `created_by is required. Valid values: ${VALID_NAMESPACES.join(", ")}`
@@ -308,7 +308,7 @@ export function validateBatchInput(
 
   const inheritedProject = strictOptionalString(body, "project");
 
-  const VALID_NAMESPACES_BATCH = ["dan", "family", "nicole", "system-cron", "gift-radar-cron"];
+  const VALID_NAMESPACES_BATCH = ["aiden", "dan", "family", "nicole", "system-cron", "gift-radar-cron"];
   if (body.created_by === undefined || body.created_by === null || body.created_by === "") {
     throw new CaptureValidationError(
       `created_by is required on the batch envelope. Valid values: ${VALID_NAMESPACES_BATCH.join(", ")}`

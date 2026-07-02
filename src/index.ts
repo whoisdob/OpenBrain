@@ -65,6 +65,9 @@ async function main(): Promise<void> {
   // same read_scope as dan (seeded in read-scope.py).
   if (process.env.MCP_ACCESS_KEY_DESKTOP)
     keyToAgent.set(process.env.MCP_ACCESS_KEY_DESKTOP, "dan-desktop");
+  // Onboarded family member (s68): aiden's gateway agent presents its own key.
+  if (process.env.MCP_ACCESS_KEY_AIDEN)
+    keyToAgent.set(process.env.MCP_ACCESS_KEY_AIDEN, "aiden");
 
   async function resolveIdentity(
     key: string | null
