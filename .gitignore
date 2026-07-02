@@ -31,3 +31,7 @@ Thumbs.db
 openbrain-replay-counts.tsv
 tmp-*.sh
 
+
+# Scratch backups (stewardship s67)
+*.bak
+.env.bak*

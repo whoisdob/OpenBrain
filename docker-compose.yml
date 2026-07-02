@@ -11,7 +11,7 @@ services:
       POSTGRES_USER: openbrain
       POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
     ports:
-      - "5432:5432"
+      - "127.0.0.1:5432:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
       - ./db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
@@ -33,8 +33,8 @@ services:
       DB_HOST: postgres
       DB_PORT: 5432
     ports:
-      - "${API_PORT:-8000}:${API_PORT:-8000}"   # REST API
-      - "${MCP_PORT:-8080}:${MCP_PORT:-8080}"   # MCP Server
+      - "127.0.0.1:${API_PORT:-8000}:${API_PORT:-8000}"   # REST API
+      - "127.0.0.1:${MCP_PORT:-8080}:${MCP_PORT:-8080}"   # MCP Server
     healthcheck:
       test: ["CMD", "wget", "-qO-", "http://localhost:8000/health"]
       interval: 30s

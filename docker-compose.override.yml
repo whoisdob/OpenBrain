@@ -1,0 +1,11 @@
+# Attaches openbrain-api to oa-net so OpenClaw gateway can reach it by
+# container name. Docker Compose auto-merges this file on every up/restart.
+services:
+  api:
+    networks:
+      - default
+      - oa-net
+
+networks:
+  oa-net:
+    external: true
