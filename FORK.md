@@ -59,6 +59,13 @@ planned) must own this as part of its person registry.
 (single source of truth = the DB row, never duplicated in code). Unmapped or
 missing keys → 401 on `/sse`.
 
+**Rotation touchpoints for `MCP_ACCESS_KEY_DESKTOP`** (the value lives in
+THREE places): `~/OpenBrain/.env` on the VM (server side), and on Dan's Mac
+`~/.config/openassistant/mcp-desktop.key` (probe) + the `env` block of
+`~/Library/Application Support/Claude/claude_desktop_config.json` (Desktop,
+0600). Rotation updates all three, file→file, never printed. **Revocation
+needs only the first**: delete the line, `docker compose up -d api`.
+
 ## Tests
 
 Run in a throwaway node:22 container (the host has no node):
