@@ -229,7 +229,7 @@ export function createApi(): Hono {
         pool,
         queryEmbedding,
         body.limit ?? 10,
-        body.threshold ?? 0.5,
+        body.threshold ?? 0.3,
         filter,
         body.project,
         body.include_archived,
