@@ -83,7 +83,7 @@ export async function searchThoughts(
   pool: pg.Pool,
   queryEmbedding: number[],
   limit: number = 10,
-  threshold: number = 0.5,
+  threshold: number = 0.3,
   filter: Record<string, unknown> = {},
   project?: string,
   include_archived?: boolean,
@@ -183,8 +183,12 @@ export async function listThoughts(
 export async function getThoughtStats(
   pool: pg.Pool,
   project?: string,
-  created_by?: string
+  // D-112: an array means "any of these namespaces" (`= ANY`), used by the MCP
+  // layer to narrow an unscoped stats call to the caller's read_scope.
+  created_by?: string | string[]
 ): Promise<ThoughtStats> {
+  const cbCond = (n: number) =>
+    Array.isArray(created_by) ? `= ANY($${n})` : `= $${n}`;
   const conditions: string[] = [];
   const params: unknown[] = [];
   let idx = 0;
@@ -196,7 +200,7 @@ export async function getThoughtStats(
   }
   if (created_by) {
     idx++;
-    conditions.push(`created_by = $${idx}`);
+    conditions.push(`created_by ${cbCond(idx)}`);
     params.push(created_by);
   }
 
@@ -211,7 +215,7 @@ export async function getThoughtStats(
   }
   if (created_by) {
     jIdx++;
-    joinConditions.push(`t.created_by = $${jIdx}`);
+    joinConditions.push(`t.created_by ${cbCond(jIdx)}`);
   }
   const joinAndClause = joinConditions.length > 0 ? "AND " + joinConditions.join(" AND ") : "";
 
@@ -283,6 +287,19 @@ export async function getThoughtStats(
       latest: range?.latest?.toISOString() ?? null,
     },
   };
+}
+
+// D-112: whose row is this? Used by the MCP write gate for update/delete
+// (the caller supplies only an id). null = no such row.
+export async function getThoughtCreatedBy(
+  pool: pg.Pool,
+  id: string
+): Promise<string | null> {
+  const { rows } = await pool.query<{ created_by: string }>(
+    `SELECT created_by FROM thoughts WHERE id = $1`,
+    [id]
+  );
+  return rows[0]?.created_by ?? null;
 }
 
 // ─── Update ──────────────────────────────────────────────────────────

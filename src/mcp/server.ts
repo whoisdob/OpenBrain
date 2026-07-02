@@ -19,6 +19,7 @@ import {
   searchThoughts,
   listThoughts,
   getThoughtStats,
+  getThoughtCreatedBy,
   updateThought,
   deleteThought,
   batchInsertThoughts,
@@ -50,21 +51,30 @@ export type AgentIdentity = { agent: string; read_scope: string[] };
 // Read and write target sets coincide in the F&F model (own ∪ circles == read_scope).
 const SCOPE_ENFORCE = process.env.SCOPE_ENFORCE === "1";
 
+// D-112 (s64): the rest of the surface D-103 left in shadow — writes
+// (capture/update/delete) and thought_stats — staged behind its own flag so the
+// flip is reversible independently of reads. Same semantics: unset = shadow-log
+// only, "1" = enforce (writes constrained to created_by ∈ read_scope; stats
+// narrowed/rejected like a read). update/delete are gated on the TARGET ROW's
+// created_by (the id alone says nothing about whose data it is).
+const SCOPE_ENFORCE_WRITES = process.env.SCOPE_ENFORCE_WRITES === "1";
+
 function shadowScope(
   identity: AgentIdentity | undefined,
   tool: string,
   createdBy: string | undefined,
-  kind: "read" | "write"
+  kind: "read" | "write",
+  enforced: boolean
 ): void {
   if (!identity) return; // unscoped/legacy caller — nothing to attribute
   const scope = identity.read_scope;
   const inScope = createdBy !== undefined && scope.includes(createdBy);
-  const mode = SCOPE_ENFORCE ? "enforce" : "shadow";
+  const mode = enforced ? "enforce" : "shadow";
   // In enforce mode an out-of-scope read is narrowed (unset) or rejected (explicit),
   // so the verdict reflects what actually happened; in shadow it is hypothetical.
   const verdict = inScope
     ? "allow"
-    : SCOPE_ENFORCE
+    : enforced
       ? createdBy === undefined
         ? "narrowed"
         : "REJECTED"
@@ -75,6 +85,17 @@ function shadowScope(
   );
 }
 
+// D-112 write gate: true = reject. created_by is validated-required on captures
+// (undefined only appeases the optional input type — reject it defensively);
+// for update/delete pass the target row's created_by.
+function rejectWrite(
+  identity: AgentIdentity | undefined,
+  createdBy: string | undefined
+): boolean {
+  if (!SCOPE_ENFORCE_WRITES || !identity) return false;
+  return createdBy === undefined || !identity.read_scope.includes(createdBy);
+}
+
 // Resolve a read to the namespace(s) actually queried (D-103 / docs/26 §7 step 3):
 //   reject         → an explicit created_by OUTSIDE scope: return empty, no query.
 //   namespaces=undefined → no enforcement (shadow/legacy/no-identity): query as-requested.
@@ -83,9 +104,12 @@ function shadowScope(
 //                          so legitimate unscoped reads (e.g. the briefing's list) keep working.
 function enforceRead(
   identity: AgentIdentity | undefined,
-  requested: string | undefined
+  requested: string | undefined,
+  // thought_stats rides SCOPE_ENFORCE_WRITES (the D-103 leftover surface), so the
+  // flag is a parameter; plain reads keep the default.
+  enforced: boolean = SCOPE_ENFORCE
 ): { reject: boolean; namespaces: string[] | undefined } {
-  if (!SCOPE_ENFORCE || !identity) {
+  if (!enforced || !identity) {
     return { reject: false, namespaces: requested === undefined ? undefined : [requested] };
   }
   const scope = identity.read_scope;
@@ -342,7 +366,7 @@ export function createMcpServer(identity?: AgentIdentity): Server {
           const topic = args?.topic as string | undefined;
           const include_archived = (args?.include_archived as boolean) ?? false;
           const created_by = args?.created_by as string | undefined;
-          shadowScope(identity, "search_thoughts", created_by, "read");
+          shadowScope(identity, "search_thoughts", created_by, "read", SCOPE_ENFORCE);
 
           const gate = enforceRead(identity, created_by);
           if (gate.reject) return emptyReadResult();
@@ -399,7 +423,7 @@ export function createMcpServer(identity?: AgentIdentity): Server {
             created_by: args?.created_by as string | undefined,
             include_archived: (args?.include_archived as boolean) ?? false,
           };
-          shadowScope(identity, "list_thoughts", filters.created_by, "read");
+          shadowScope(identity, "list_thoughts", filters.created_by, "read", SCOPE_ENFORCE);
 
           const listGate = enforceRead(identity, filters.created_by);
           if (listGate.reject) return emptyReadResult();
@@ -455,7 +479,16 @@ export function createMcpServer(identity?: AgentIdentity): Server {
             throw err;
           }
 
-          shadowScope(identity, "capture_thought", input.created_by, "write");
+          shadowScope(identity, "capture_thought", input.created_by, "write", SCOPE_ENFORCE_WRITES);
+          if (rejectWrite(identity, input.created_by)) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: `Error: created_by '${input.created_by}' is outside your write scope`,
+              }],
+              isError: true,
+            };
+          }
 
           // Generate embedding and extract metadata in parallel
           const [embedding, autoMetadata] = await Promise.all([
@@ -504,8 +537,19 @@ export function createMcpServer(identity?: AgentIdentity): Server {
         case "thought_stats": {
           const project = args?.project as string | undefined;
           const created_by = args?.created_by as string | undefined;
-          shadowScope(identity, "thought_stats", created_by, "read");
-          const stats = await getThoughtStats(pool, project, created_by);
+          shadowScope(identity, "thought_stats", created_by, "read", SCOPE_ENFORCE_WRITES);
+          const statsGate = enforceRead(identity, created_by, SCOPE_ENFORCE_WRITES);
+          if (statsGate.reject) {
+            const empty = {
+              total_thoughts: 0, types: {}, top_topics: [], top_people: [],
+              date_range: { earliest: null, latest: null },
+            };
+            return {
+              content: [{ type: "text" as const, text: JSON.stringify(empty, null, 2) }],
+            };
+          }
+          const stats = await getThoughtStats(
+            pool, project, statsGate.namespaces ?? created_by);
 
           return {
             content: [
@@ -527,6 +571,23 @@ export function createMcpServer(identity?: AgentIdentity): Server {
               content: [{ type: "text" as const, text: "Error: id must be a valid UUID" }],
               isError: true,
             };
+          }
+
+          // D-112: the id alone says nothing about whose data it is — gate on the
+          // target row's created_by. A missing row falls through to the normal
+          // not-found path in updateThought.
+          const updateTarget = await getThoughtCreatedBy(pool, id);
+          if (updateTarget !== null) {
+            shadowScope(identity, "update_thought", updateTarget, "write", SCOPE_ENFORCE_WRITES);
+            if (rejectWrite(identity, updateTarget)) {
+              return {
+                content: [{
+                  type: "text" as const,
+                  text: `Error: thought ${id} is outside your write scope`,
+                }],
+                isError: true,
+              };
+            }
           }
 
           // Re-generate embedding and re-extract metadata
@@ -568,6 +629,21 @@ export function createMcpServer(identity?: AgentIdentity): Server {
             };
           }
 
+          // D-112: same target-row gate as update_thought.
+          const deleteTarget = await getThoughtCreatedBy(pool, id);
+          if (deleteTarget !== null) {
+            shadowScope(identity, "delete_thought", deleteTarget, "write", SCOPE_ENFORCE_WRITES);
+            if (rejectWrite(identity, deleteTarget)) {
+              return {
+                content: [{
+                  type: "text" as const,
+                  text: `Error: thought ${id} is outside your write scope`,
+                }],
+                isError: true,
+              };
+            }
+          }
+
           const result = await deleteThought(pool, id);
 
           return {
@@ -596,7 +672,22 @@ export function createMcpServer(identity?: AgentIdentity): Server {
           }
 
           for (const it of batch.items) {
-            shadowScope(identity, "capture_thoughts", it.created_by, "write");
+            shadowScope(identity, "capture_thoughts", it.created_by, "write", SCOPE_ENFORCE_WRITES);
+          }
+          // D-112: the batch is atomic — one out-of-scope item rejects the whole
+          // batch (no partial write).
+          const outOfScope = [...new Set(
+            batch.items.filter((it) => rejectWrite(identity, it.created_by))
+                       .map((it) => it.created_by))];
+          if (outOfScope.length > 0) {
+            return {
+              content: [{
+                type: "text" as const,
+                text: `Error: created_by ${outOfScope.map((n) => `'${n}'`).join(", ")} ` +
+                  "is outside your write scope; no thoughts were captured",
+              }],
+              isError: true,
+            };
           }
 
           // Process each item: embed + extract metadata + merge with caller metadata
