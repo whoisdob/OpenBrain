@@ -1,10 +1,19 @@
 # Attaches openbrain-api to oa-net so OpenClaw gateway can reach it by
 # container name. Docker Compose auto-merges this file on every up/restart.
+#
+# ADR-008 second client (s67): the MCP port is additionally bound to the VM's
+# tailscale IP so MCP clients elsewhere on the tailnet (Claude Desktop on the
+# Mac) can connect. Compose APPENDS these ports to the 127.0.0.1 binds in
+# docker-compose.yml. Tailnet-only by construction (WireGuard), key-auth on
+# every /sse connect. NOTE: if the box reboots and docker wins the race against
+# tailscaled, this bind fails and the container restarts until tailscale0 is up.
 services:
   api:
     networks:
       - default
       - oa-net
+    ports:
+      - "100.114.150.46:${MCP_PORT:-8080}:${MCP_PORT:-8080}"
 
 networks:
   oa-net:

@@ -60,6 +60,11 @@ async function main(): Promise<void> {
   if (mcpAccessKey) keyToAgent.set(mcpAccessKey, "dan");
   if (process.env.MCP_ACCESS_KEY_NICOLE)
     keyToAgent.set(process.env.MCP_ACCESS_KEY_NICOLE, "nicole");
+  // ADR-008 second client (s67): Claude Desktop on Dan's Mac, over the tailnet.
+  // Its own key so it is independently revocable and distinct in audit logs;
+  // same read_scope as dan (seeded in read-scope.py).
+  if (process.env.MCP_ACCESS_KEY_DESKTOP)
+    keyToAgent.set(process.env.MCP_ACCESS_KEY_DESKTOP, "dan-desktop");
 
   async function resolveIdentity(
     key: string | null
