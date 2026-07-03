@@ -45,11 +45,14 @@ identity beyond a single shared access key.
 
 ### Known landmine: the hardcoded namespace whitelist
 
-`src/api/validation.ts` `VALID_NAMESPACES = [dan, family, nicole, system-cron,
-gift-radar-cron]` is **hardcoded**. Onboarding a new person (e.g. `aiden`)
-requires extending this list (and rebuilding) until it derives from
-`user_config`. The onboarding script in OpenAssistant (`onboard-user.sh`,
-planned) must own this as part of its person registry.
+`src/api/validation.ts` `VALID_NAMESPACES = [aiden, dan, family, nicole,
+system-cron, gift-radar-cron]` is **hardcoded** (in TWO places: capture +
+batch). Onboarding a new person requires extending both (and rebuilding)
+until the list derives from `user_config`. As of s68 (D-120) this edit is
+**owned by OpenAssistant `scripts/onboard_fork_step.py`** (regex-patches
+both arrays + the keyToAgent map + generates the key, idempotently), called
+from `onboard-user.sh` — exercised live for `aiden`. The commit itself
+stays a deliberate human/builder act (this file's push recipe applies).
 
 ## Flags (in `~/OpenBrain/.env`, read at container start)
 
@@ -64,6 +67,7 @@ planned) must own this as part of its person registry.
 | `MCP_ACCESS_KEY` | `dan` | `["dan","family"]` |
 | `MCP_ACCESS_KEY_NICOLE` | `nicole` | `["family","nicole"]` |
 | `MCP_ACCESS_KEY_DESKTOP` | `dan-desktop` | `["dan","family"]` |
+| `MCP_ACCESS_KEY_AIDEN` | `aiden` | `["aiden","family"]` (s68, D-120) |
 
 `read_scope` rows are seeded/managed by OpenAssistant `scripts/read-scope.py`
 (single source of truth = the DB row, never duplicated in code). Unmapped or
@@ -75,6 +79,12 @@ THREE places): `~/OpenBrain/.env` on the VM (server side), and on Dan's Mac
 `~/Library/Application Support/Claude/claude_desktop_config.json` (Desktop,
 0600). Rotation updates all three, file→file, never printed. **Revocation
 needs only the first**: delete the line, `docker compose up -d api`.
+
+**Rotation touchpoints for the gateway-agent keys** (`MCP_ACCESS_KEY`,
+`_NICOLE`, `_AIDEN`): each value lives in TWO places — `~/OpenBrain/.env`
+(server) and `~/openclaw/.env` (the gateway presents it via the
+`mcp.servers.openbrain-<person>` `${VAR}` ref). Rotate both + restart api
+and gateway. Revocation = the OpenBrain line alone.
 
 ## Tests
 
