@@ -155,8 +155,8 @@ export function createMcpServer(identity?: AgentIdentity): Server {
             },
             limit: {
               type: "integer",
-              description: "Maximum results to return (default: 10)",
-              default: 10,
+              description: "Maximum results to return (default: 20)",
+              default: 20,
             },
             threshold: {
               type: "number",
@@ -362,7 +362,7 @@ export function createMcpServer(identity?: AgentIdentity): Server {
         // ── search_thoughts ──
         case "search_thoughts": {
           const query = args?.query as string;
-          const limit = (args?.limit as number) ?? 10;
+          const limit = (args?.limit as number) ?? 20;
           const threshold = (args?.threshold as number) ?? 0.3;
           const project = args?.project as string | undefined;
           const type = args?.type as string | undefined;
