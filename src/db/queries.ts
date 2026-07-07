@@ -52,6 +52,7 @@ export interface ListFilters {
   project?: string;
   created_by?: string;
   include_archived?: boolean;
+  limit?: number;
 }
 
 // ─── Insert ──────────────────────────────────────────────────────────
@@ -162,7 +163,9 @@ export async function listThoughts(
   }
 
   idx++;
-  params.push(limit);
+  // Honor a caller-supplied limit (the route passes the request body as
+  // `filters`); clamp to [1,1000] so the board scales past the old 50 cap.
+  params.push(Math.min(Math.max(1, filters.limit ?? limit ?? 50), 1000));
 
   const whereClause = conditions.length > 0 ? conditions.join(" AND ") : "TRUE";
 
