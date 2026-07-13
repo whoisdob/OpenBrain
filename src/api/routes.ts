@@ -22,6 +22,7 @@ import {
   type BatchThoughtInput,
 } from "../db/queries.js";
 import { getEmbedder } from "../embedder/index.js";
+import { DEFAULT_METADATA } from "../embedder/types.js";
 import {
   validateCaptureInput,
   validateBatchInput,
@@ -88,9 +89,14 @@ export function createApi(): Hono {
     }
 
     try {
+      // Fork (s115): skip_metadata opts out of the metadata-extraction LLM call —
+      // the dominant write cost (~5s vs ~0.2s embed), pure waste for structured
+      // rows (TASK| board payloads are exact-query by design). Embedding still runs.
       const [embedding, autoMetadata] = await Promise.all([
         embedder.generateEmbedding(input.content),
-        embedder.extractMetadata(input.content),
+        input.skipMetadata
+          ? Promise.resolve(DEFAULT_METADATA)
+          : embedder.extractMetadata(input.content),
       ]);
 
       // Caller-supplied metadata wins over auto-extracted; both lose to `source` which
@@ -293,16 +299,21 @@ export function createApi(): Hono {
       return c.json({ error: "id must be a valid UUID" }, 400);
     }
 
-    const body = await c.req.json<{ content: string }>();
+    const body = await c.req.json<{ content: string; skip_metadata?: boolean }>();
 
     if (!body.content || body.content.trim().length === 0) {
       return c.json({ error: "content is required" }, 400);
     }
 
     try {
+      // Fork (s115): skip_metadata=true skips the metadata-extraction LLM call
+      // (the dominant write cost) and PRESERVES the row's existing metadata
+      // (updateThought COALESCEs on null). Embedding still refreshes.
       const [embedding, metadata] = await Promise.all([
         embedder.generateEmbedding(body.content),
-        embedder.extractMetadata(body.content),
+        body.skip_metadata === true
+          ? Promise.resolve(null)
+          : embedder.extractMetadata(body.content),
       ]);
 
       const result = await updateThought(pool, id, body.content, embedding, metadata);
@@ -310,8 +321,8 @@ export function createApi(): Hono {
       return c.json({
         status: "updated",
         id: result.id,
-        type: metadata.type,
-        topics: metadata.topics,
+        type: metadata?.type,
+        topics: metadata?.topics,
         content: result.content,
       });
     } catch (err) {

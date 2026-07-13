@@ -35,3 +35,4 @@ tmp-*.sh
 # Scratch backups (stewardship s67)
 *.bak
 .env.bak*
+.env.pre-azure-swap

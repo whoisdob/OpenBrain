@@ -312,16 +312,18 @@ export async function updateThought(
   id: string,
   content: string,
   embedding: number[],
-  metadata: ThoughtMetadata
+  // Fork (s115): null = keep the row's existing metadata (skip_metadata callers).
+  metadata: ThoughtMetadata | null
 ): Promise<ThoughtRow> {
   const embeddingStr = `[${embedding.join(",")}]`;
 
   const { rows, rowCount } = await pool.query<ThoughtRow>(
     `UPDATE thoughts
-     SET content = $2, embedding = $3::vector, metadata = $4::jsonb
+     SET content = $2, embedding = $3::vector,
+         metadata = COALESCE($4::jsonb, metadata)
      WHERE id = $1
      RETURNING id, content, metadata, project, archived, supersedes, created_at`,
-    [id, content, embeddingStr, JSON.stringify(metadata)]
+    [id, content, embeddingStr, metadata === null ? null : JSON.stringify(metadata)]
   );
 
   if (!rowCount || rowCount === 0) {

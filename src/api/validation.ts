@@ -46,6 +46,12 @@ export interface ValidatedCapture {
   supersedes?: string;
   /** Caller-provided metadata to merge on top of auto-extracted metadata. */
   metadata: Record<string, unknown>;
+  /**
+   * Fork (s115): caller opts OUT of the metadata-extraction LLM call for rows
+   * whose metadata is meaningless by design (e.g. structured TASK| payloads,
+   * exact-query only). Embedding still runs. Default false — behavior unchanged.
+   */
+  skipMetadata: boolean;
   warnings: CaptureWarning[];
 }
 
@@ -57,6 +63,7 @@ const KNOWN_TOP_LEVEL = new Set([
   "created_by",
   "supersedes",
   "metadata",
+  "skip_metadata",
 ]);
 
 /**
@@ -247,6 +254,20 @@ export function validateCaptureInput(
     });
   }
 
+  // Fork (s115): strictly boolean — anything else is a shape bug, warned/escalated.
+  let skipMetadata = false;
+  if (body.skip_metadata !== undefined) {
+    if (typeof body.skip_metadata === "boolean") {
+      skipMetadata = body.skip_metadata;
+    } else {
+      escalate({
+        field: "skip_metadata",
+        reason: "wrong_type",
+        message: "skip_metadata was ignored because it must be a boolean",
+      });
+    }
+  }
+
   return {
     content,
     source,
@@ -254,6 +275,7 @@ export function validateCaptureInput(
     created_by,
     supersedes,
     metadata,
+    skipMetadata,
     warnings,
   };
 }

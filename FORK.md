@@ -42,6 +42,7 @@ identity beyond a single shared access key.
 | `12b043b` | REST captures **require + whitelist** `created_by` | reject unattributed writes at the REST edge too |
 | `22843da` | REST search default threshold 0.5 → 0.3 | 0.5 dropped legitimate recall matches |
 | (s67) | `scope.test.ts` + export seam; `MCP_ACCESS_KEY_DESKTOP` → `dan-desktop` | regression net; 2nd MCP client (ADR-008 validation) |
+| (s115) | `skip_metadata: true` on REST capture + update: caller opts out of the metadata-extraction LLM call (~95% of write latency); PUT preserves the row's existing metadata (`COALESCE`), embedding still runs; default behavior unchanged | board/task writes 7.5s → ~0.5s (OpenAssistant D-219 — `TASK\|` rows are exact-query, their metadata is never read) |
 
 ### Known landmine: the hardcoded namespace whitelist
 
