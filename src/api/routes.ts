@@ -1,7 +1,7 @@
 /**
  * REST API routes using Hono.
  * Provides /health, /memories, /memories/search, /memories/list, /memories/batch,
- * /memories/:id (PUT, DELETE), /stats endpoints.
+ * /memories/:id (PUT, DELETE), /stats, /embed endpoints.
  */
 
 import { Hono } from "hono";
@@ -203,6 +203,28 @@ export function createApi(): Hono {
         { error: "Failed to batch capture thoughts", detail: message },
         502
       );
+    }
+  });
+
+  // ─── Embed (utility) ─────────────────────────────────────────────
+  // Returns the raw embedding vector for a text — the ONE embedding home for
+  // consumers outside the thoughts table (OpenAssistant's app.corpus search,
+  // docs/48 phase 2). Same embedder, same vector space as every capture, so
+  // corpus rows and queries stay comparable. No DB access; trusted-network
+  // only, like every route here.
+
+  app.post("/embed", async (c) => {
+    const body = await c.req.json<{ text: string }>();
+    if (!body.text || body.text.trim().length === 0) {
+      return c.json({ error: "text is required" }, 400);
+    }
+    try {
+      const embedding = await embedder.generateEmbedding(body.text);
+      return c.json({ embedding, dimensions: embedding.length });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err);
+      console.error("[api] Embed failed:", message);
+      return c.json({ error: "Failed to embed text", detail: message }, 502);
     }
   });
 
